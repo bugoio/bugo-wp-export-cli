@@ -1,0 +1,135 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "ed01410c144f82474730e125a9e41c7f",
+    "packages": [
+        {
+            "name": "league/html-to-markdown",
+            "version": "4.8.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/thephpleague/html-to-markdown.git",
+                "reference": "250d1bf45f80d15594fb6b316df777d6d4c97ad1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/thephpleague/html-to-markdown/zipball/250d1bf45f80d15594fb6b316df777d6d4c97ad1",
+                "reference": "250d1bf45f80d15594fb6b316df777d6d4c97ad1",
+                "shasum": ""
+            },
+            "require": {
+                "ext-dom": "*",
+                "ext-xml": "*",
+                "php": ">=5.3.3"
+            },
+            "require-dev": {
+                "mikehaertl/php-shellcommand": "~1.1.0",
+                "phpunit/phpunit": "4.*",
+                "scrutinizer/ocular": "~1.1"
+            },
+            "bin": [
+                "bin/html-to-markdown"
+            ],
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "4.9-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "League\\HTMLToMarkdown\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nick Cernis",
+                    "role": "Original Author",
+                    "email": "nick@cern.is",
+                    "homepage": "http://modernnerd.net"
+                },
+                {
+                    "name": "Colin O'Dell",
+                    "role": "Lead Developer",
+                    "email": "colinodell@gmail.com",
+                    "homepage": "https://www.colinodell.com"
+                }
+            ],
+            "description": "An HTML-to-markdown conversion helper for PHP",
+            "homepage": "https://github.com/thephpleague/html-to-markdown",
+            "keywords": [
+                "html",
+                "markdown"
+            ],
+            "time": "2018-12-24T17:21:44+00:00"
+        },
+        {
+            "name": "pixel418/markdownify",
+            "version": "v2.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Elephant418/Markdownify.git",
+                "reference": "891be2176858712c6c4581da410e96fc2019e3f0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Elephant418/Markdownify/zipball/891be2176858712c6c4581da410e96fc2019e3f0",
+                "reference": "891be2176858712c6c4581da410e96fc2019e3f0",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^4.8"
+            },
+            "type": "lib",
+            "autoload": {
+                "psr-4": {
+                    "Markdownify\\": "src",
+                    "Test\\Markdownify\\": "test"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Milian Wolff",
+                    "email": "mail@milianw.de",
+                    "homepage": "http://milianw.de"
+                },
+                {
+                    "name": "Thomas Zilliox",
+                    "email": "hello@tzi.fr",
+                    "homepage": "https://tzi.fr"
+                }
+            ],
+            "description": "The HTML to Markdown converter for PHP ",
+            "homepage": "https://github.com/elephant418/Markdownify",
+            "keywords": [
+                "converter",
+                "html",
+                "markdown",
+                "markdownify"
+            ],
+            "time": "2019-01-22T16:33:43+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": []
+}
