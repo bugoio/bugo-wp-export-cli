@@ -337,7 +337,6 @@ class Hugo_Export
         $this->fs->orginals = $this->dir . 'originals';
         $this->fs->posts = $this->dir . $this->post_folder;
         $this->fs->static = $this->dir . 'static';
-        $this->fs->zip = $this->zip;
 
         foreach($this->fs as $key => $value){
           $wp_filesystem->mkdir($value);
@@ -408,13 +407,9 @@ class Hugo_Export
         if (get_post_type($post) == 'page') {
             $filepath = parse_url(get_the_permalink($post));
             $relpath = str_replace($post->post_name, '', substr($filepath['path'], 0, -1));
-            echo "post_name: " . $post->post_name . "\n";
-            echo "relpath: " . $relpath . "\n";
             $curDir = $this->fs->content . $relpath;
-            echo "curDir: " . $curDir . "\n";
             $wp_filesystem->mkdir($curDir);
             $filename = $curDir . sanitize_title_with_dashes($post->post_title) . '.md';
-            echo $filename . "\n\n";
         } else {
             $filename = $this->fs->posts . sanitize_title_with_dashes($post->post_title) . '.md';
         }
@@ -494,7 +489,7 @@ class Hugo_Export
     function cleanup()
     {
         global $wp_filesystem;
-        // $wp_filesystem->delete($this->dir, true);
+        $wp_filesystem->delete($this->dir, true);
         if ('cli' !== php_sapi_name()) {
             $wp_filesystem->delete($this->zip);
         }
@@ -518,20 +513,28 @@ class Hugo_Export
 
     function convert_uploads()
     {
+        //copy the orginals into the originals directory.
         global $wpdb;
         $files = $wpdb->get_results("SELECT guid FROM `wp_posts` where `post_type` = 'attachment'");
         $upload_dir = wp_upload_dir();
 
-        // foreach($files as $file){
-        //   $url_info = parse_url($file->guid);
-        //   $file_path = str_replace('/wp-content/uploads',"",$url_info['path']);
-        //   $src = escapeshellcmd $upload_dir['basedir'] . $file_path;
-        //   echo 'src: ' . $src . "\n\n";
-        // }
+        foreach($files as $file){
+          $url_info = parse_url($file->guid);
+          $path_info = pathinfo($url_info['path']);
+          // print_r($path_info);
+          $file_path = str_replace('/wp-content/uploads',"",$url_info['path']);
+          $src = $upload_dir['basedir'] . $file_path;
+          $target = $this->fs->orginals . "/" . $path_info['basename'];
+          copy($src,$target);
+          // echo 'S: ' . $src . "\n";
+          // echo 'T: ' . $target . "\n\n";
+        }
 
         // print_r($upload_dir);
         // exit;
-        $this->copy_recursive($upload_dir['basedir'], $this->dir . str_replace(trailingslashit(get_home_url()), '', $upload_dir['baseurl']));
+
+        // copy the uploads directory to the static folder
+        $this->copy_recursive($upload_dir['basedir'], $this->fs->static . "/" . str_replace(trailingslashit(get_home_url()), '', $upload_dir['baseurl']));
     }
 
     /**
