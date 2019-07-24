@@ -32,7 +32,7 @@ class Hugo_Export
 {
     protected $_tempDir = null;
     private $zip_folder = 'hugo-export/'; //folder zip file extracts to
-    private $post_folder = 'posts/'; //folder to place posts within
+    private $post_folder = 'content/posts/'; //folder to place posts within
 
     /**
      * Manually edit this private property and set it to TRUE if you want to export
@@ -328,9 +328,22 @@ class Hugo_Export
         add_filter('filesystem_method', array(&$this, 'filesystem_method_filter'));
 
         WP_Filesystem();
-
         $this->dir = $this->getTempDir() . 'wp-hugo-' . md5(time()) . '/';
         $this->zip = $this->getTempDir() . 'wp-hugo.zip';
+
+        $this->fs = (object)[];
+        $this->fs->dir = $this->dir;
+        $this->fs->content = $this->dir . 'content';
+        $this->fs->orginals = $this->dir . 'originals';
+        $this->fs->posts = $this->dir . $this->post_folder;
+        $this->fs->static = $this->dir . 'static';
+        $this->fs->zip = $this->zip;
+
+        foreach($this->fs as $key => $value){
+          $wp_filesystem->mkdir($value);
+        }
+        
+
         $wp_filesystem->mkdir($this->dir);
         $wp_filesystem->mkdir($this->dir . $this->post_folder);
         $wp_filesystem->mkdir($this->dir . 'wp-content/');
@@ -391,14 +404,22 @@ class Hugo_Export
     {
 
         global $wp_filesystem;
-        $filepath = parse_url(get_the_permalink($post));
+
         if (get_post_type($post) == 'page') {
-            $wp_filesystem->mkdir(urldecode($this->dir . $filepath['path'] ));
-            $filename = substr($filepath['path'], 0, -1) . '.md';
+            $filepath = parse_url(get_the_permalink($post));
+            $relpath = str_replace($post->post_name, '', substr($filepath['path'], 0, -1));
+            echo "post_name: " . $post->post_name . "\n";
+            echo "relpath: " . $relpath . "\n";
+            $curDir = $this->fs->content . $relpath;
+            echo "curDir: " . $curDir . "\n";
+            $wp_filesystem->mkdir($curDir);
+            $filename = $curDir . sanitize_title_with_dashes($post->post_title) . '.md';
+            echo $filename . "\n\n";
         } else {
-            $filename = $this->post_folder . sanitize_title_with_dashes($post->post_title) . '.md';
+            $filename = $this->fs->posts . sanitize_title_with_dashes($post->post_title) . '.md';
         }
-        $wp_filesystem->put_contents($this->dir . $filename, $output);
+
+        $wp_filesystem->put_contents($filename, $output);
     }
 
     /**
@@ -473,7 +494,7 @@ class Hugo_Export
     function cleanup()
     {
         global $wp_filesystem;
-        $wp_filesystem->delete($this->dir, true);
+        // $wp_filesystem->delete($this->dir, true);
         if ('cli' !== php_sapi_name()) {
             $wp_filesystem->delete($this->zip);
         }
