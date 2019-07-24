@@ -228,7 +228,7 @@ class Hugo_Export
         $content = apply_filters('the_content', $post->post_content);
         $converter = new HtmlConverter();
         $markdown = $converter->convert($content);
-        print_r($markdown);
+        // print_r($markdown);
 
         if (false !== strpos($markdown, '[]: ')) {
             // faulty links; return plain HTML
@@ -391,14 +391,13 @@ class Hugo_Export
     {
 
         global $wp_filesystem;
-
+        $filepath = parse_url(get_the_permalink($post));
         if (get_post_type($post) == 'page') {
-            $wp_filesystem->mkdir(urldecode($this->dir . $post->post_name));
-            $filename = urldecode($post->post_name . '/index.md');
+            $wp_filesystem->mkdir(urldecode($this->dir . $filepath['path'] ));
+            $filename = substr($filepath['path'], 0, -1) . '.md';
         } else {
-            $filename = $this->post_folder . date('Y-m-d', strtotime($post->post_date)) . '-' . urldecode($post->post_name) . '.md';
+            $filename = $this->post_folder . sanitize_title_with_dashes($post->post_title) . '.md';
         }
-
         $wp_filesystem->put_contents($this->dir . $filename, $output);
     }
 
@@ -498,8 +497,19 @@ class Hugo_Export
 
     function convert_uploads()
     {
-
+        global $wpdb;
+        $files = $wpdb->get_results("SELECT guid FROM `wp_posts` where `post_type` = 'attachment'");
         $upload_dir = wp_upload_dir();
+
+        // foreach($files as $file){
+        //   $url_info = parse_url($file->guid);
+        //   $file_path = str_replace('/wp-content/uploads',"",$url_info['path']);
+        //   $src = escapeshellcmd $upload_dir['basedir'] . $file_path;
+        //   echo 'src: ' . $src . "\n\n";
+        // }
+
+        // print_r($upload_dir);
+        // exit;
         $this->copy_recursive($upload_dir['basedir'], $this->dir . str_replace(trailingslashit(get_home_url()), '', $upload_dir['baseurl']));
     }
 
