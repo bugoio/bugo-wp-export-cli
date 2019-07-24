@@ -30,7 +30,7 @@ use League\HTMLToMarkdown\HtmlConverter;
 
 class Hugo_Export
 {
-    protected $_tempDir = null;
+    protected $_tempDir = "tmp";
     private $zip_folder = 'hugo-export/'; //folder zip file extracts to
     private $post_folder = 'content/posts/'; //folder to place posts within
 
