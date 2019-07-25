@@ -10,7 +10,7 @@ This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter
 * Processes shortcodes
 * Converts all `post_content` to Markdown Extra (using Markdownify)
 * Converts all `post_meta` and fields within the `wp_posts` table to YAML front matter for parsing by Hugo.
-* Converts all **Advanced Custom Fields** into front matter in your posts.
+* Converts all **Advanced Custom Fields** into front matter in your posts. May be duplicate data, but new keys.
 * Metadata is converted markdown.
 * Exports private posts and drafts. They are marked as drafts as well and won't get published with Hugo.
 * Generates a `config.yaml` with all settings in the `wp_options` table
