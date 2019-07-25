@@ -30,7 +30,7 @@ use League\HTMLToMarkdown\HtmlConverter;
 
 class Hugo_Export
 {
-    protected $_tempDir = "tmp";
+    protected $_tempDir = null;
     private $zip_folder = 'hugo-export/'; //folder zip file extracts to
     private $post_folder = 'content/posts/'; //folder to place posts within
 
@@ -61,8 +61,7 @@ class Hugo_Export
     /**
      * Hook into WP Core
      */
-    function __construct()
-    {
+    function __construct(){
 
         add_action('admin_menu', array(&$this, 'register_menu'));
         add_action('current_screen', array(&$this, 'callback'));
@@ -71,8 +70,7 @@ class Hugo_Export
     /**
      * Listens for page callback, intercepts and runs export
      */
-    function callback()
-    {
+    function callback() {
 
         if (get_current_screen()->id != 'export')
             return;
@@ -90,8 +88,7 @@ class Hugo_Export
     /**
      * Add menu option to tools list
      */
-    function register_menu()
-    {
+    function register_menu(){
 
         add_management_page(__('Export to Hugo', 'hugo-export'), __('Export to Hugo', 'hugo-export'), 'manage_options', 'export.php?type=hugo');
     }
@@ -100,8 +97,7 @@ class Hugo_Export
      * Get an array of all post and page IDs
      * Note: We don't use core's get_posts as it doesn't scale as well on large sites
      */
-    function get_posts()
-    {
+    function get_posts(){
 
         global $wpdb;
         return $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_status in ('publish', 'draft', 'private') AND post_type IN ('post', 'page' )");
@@ -112,8 +108,7 @@ class Hugo_Export
      *
      * @return bool|string
      */
-    protected function _getPostDateAsIso(WP_Post $post)
-    {
+    protected function _getPostDateAsIso(WP_Post $post){
         // Dates in the m/d/y or d-m-y formats are disambiguated by looking at the separator between the various components: if the separator is a slash (/),
         // then the American m/d/y is assumed; whereas if the separator is a dash (-) or a dot (.), then the European d-m-y format is assumed.
         $unixTime = strtotime($post->post_date_gmt);
@@ -123,8 +118,7 @@ class Hugo_Export
     /**
      * Convert a posts meta data (both post_meta and the fields in wp_posts) to key value pairs for export
      */
-    function convert_meta(WP_Post $post)
-    {
+    function convert_meta(WP_Post $post){
         $output = array(
             'title' => html_entity_decode(get_the_title($post), ENT_QUOTES | ENT_XML1, 'UTF-8'),
             //'author' => get_userdata($post->post_author)->display_name,
@@ -168,8 +162,7 @@ class Hugo_Export
         return $output;
     }
 
-    protected function _isEmpty($value)
-    {
+    protected function _isEmpty($value){
         if (true === is_array($value)) {
             if (true === empty($value)) {
                 return true;
@@ -192,8 +185,7 @@ class Hugo_Export
     /**
      * Convert post taxonomies for export
      */
-    function convert_terms($post)
-    {
+    function convert_terms($post){
 
         $output = array();
         foreach (get_taxonomies(array('object_type' => array(get_post_type($post)))) as $tax) {
@@ -223,8 +215,7 @@ class Hugo_Export
     /**
      * Convert the main post content to Markdown.
      */
-    function convert_content($post)
-    {
+    function convert_content($post){
         $content = apply_filters('the_content', $post->post_content);
         $converter = new HtmlConverter();
         $markdown = $converter->convert($content);
@@ -241,8 +232,7 @@ class Hugo_Export
     /**
      * Loop through and convert all comments for the specified post
      */
-    function convert_comments($post)
-    {
+    function convert_comments($post){
         $args = array(
             'post_id' => $post->ID,
             'order' => 'ASC',   // oldest comments first
@@ -267,9 +257,9 @@ class Hugo_Export
     /**
      * Loop through and convert all posts to MD files with YAML headers
      */
-    function convert_posts()
-    {
+    function convert_posts(){
         global $post;
+        echo "Converting posts.\n\n";
 
         foreach ($this->get_posts() as $postID) {
             $post = get_post($postID);
@@ -294,16 +284,14 @@ class Hugo_Export
         }
     }
 
-    function filesystem_method_filter()
-    {
+    function filesystem_method_filter(){
         return 'direct';
     }
 
     /**
      *  Conditionally Include required classes
      */
-    function require_classes()
-    {
+    function require_classes(){
 
         foreach ($this->required_classes as $class => $path) {
             if (class_exists($class)) {
@@ -315,21 +303,23 @@ class Hugo_Export
     }
 
     /**
-     * Main function, bootstraps, converts, and cleans up
+     * Create Directories
      */
-    function export()
-    {
+    function create_directories( $type = all) {
         global $wp_filesystem;
+        $site = get_bloginfo( 'name' );
 
-        define('DOING_JEKYLL_EXPORT', true);
+        echo "[INFO] Exporting " . $site ." to Hugo.\n\n";
+
+        define('DOING_HUGO_EXPORT', true);
 
         $this->require_classes();
 
         add_filter('filesystem_method', array(&$this, 'filesystem_method_filter'));
 
         WP_Filesystem();
-        $this->dir = $this->getTempDir() . 'wp-hugo-' . md5(time()) . '/';
-        $this->zip = $this->getTempDir() . 'wp-hugo.zip';
+        $this->dir = $this->getTempDir() . '/wp-hugo-' . sanitize_title_with_dashes($site) . '/';
+        // $this->zip = $this->getTempDir() . 'wp-hugo.zip';
 
         $this->fs = (object)[];
         $this->fs->dir = $this->dir;
@@ -346,23 +336,30 @@ class Hugo_Export
         $wp_filesystem->mkdir($this->dir);
         $wp_filesystem->mkdir($this->dir . $this->post_folder);
         $wp_filesystem->mkdir($this->dir . 'wp-content/');
+    }
 
+    /**
+     * Main function, bootstraps, converts, and cleans up
+     */
+    function export(){
+        $this->require_classes();
+
+        $this->create_directories();
         $this->convert_options();
         $this->convert_posts();
         $this->convert_uploads();
-        $this->zip();
-        $this->send();
-        $this->cleanup();
+        // $this->zip();
+        // $this->send();
+        // $this->cleanup();
     }
 
     /**
      * Convert options table to config.yaml file
      */
-    function convert_options()
-    {
+    function convert_options(){
 
         global $wp_filesystem;
-
+        echo "Converting options.\n\n";
         $options = wp_load_alloptions();
         foreach ($options as $key => &$option) {
 
@@ -399,8 +396,7 @@ class Hugo_Export
     /**
      * Write file to temp dir
      */
-    function write($output, $post)
-    {
+    function write($output, $post){
 
         global $wp_filesystem;
 
@@ -438,9 +434,8 @@ class Hugo_Export
     /**
      * Zip temp dir
      */
-    function zip()
-    {
-
+    function zip(){
+        echo "Zipping it all up. Be patient.";
         //create zip
         $zip = new ZipArchive();
         $err = $zip->open($this->zip, ZIPARCHIVE::CREATE | ZIPARCHIVE::OVERWRITE);
@@ -448,18 +443,18 @@ class Hugo_Export
             die("Failed to create '$this->zip' err: $err");
         }
         $this->_zip($this->dir, $zip);
+        echo "Crushing it. This can take a long time.\n\n";
         $zip->close();
     }
 
     /**
      * Helper function to add a file to the zip
      */
-    function _zip($dir, &$zip)
-    {
+    function _zip($dir, &$zip){
 
         //loop through all files in directory
         foreach ((array)glob(trailingslashit($dir) . '*') as $path) {
-
+            echo "Adding to zip: " . $path . "\n\n";
             // periodically flush the zipfile to avoid OOM errors
             if ((($zip->numFiles + 1) % 250) == 0) {
                 $filename = $zip->filename;
@@ -483,8 +478,7 @@ class Hugo_Export
     /**
      * Send headers and zip file to user
      */
-    function send()
-    {
+    function send() {
         if ('cli' === php_sapi_name()) {
             echo "\nThis is your file!\n$this->zip\n";
             return null;
@@ -504,8 +498,8 @@ class Hugo_Export
     /**
      * Clear temp files
      */
-    function cleanup()
-    {
+    function cleanup(){
+        echo "cleaning up the mess\n\n";
         global $wp_filesystem;
         $wp_filesystem->delete($this->dir, true);
         if ('cli' !== php_sapi_name()) {
@@ -516,8 +510,7 @@ class Hugo_Export
     /**
      * Rename an assoc. array's key without changing the order
      */
-    function rename_key(&$array, $from, $to)
-    {
+    function rename_key(&$array, $from, $to) {
 
         $keys = array_keys($array);
         $index = array_search($from, $keys);
@@ -529,29 +522,29 @@ class Hugo_Export
         $array = array_combine($keys, $array);
     }
 
-    function convert_uploads()
-    {
+    function convert_uploads() {
         //copy the orginals into the originals directory.
         global $wpdb;
+        echo "Copying Media. This could take a while…\n\n";
         $files = $wpdb->get_results("SELECT guid FROM `wp_posts` where `post_type` = 'attachment'");
         $upload_dir = wp_upload_dir();
 
+        echo "Copying originals.\n\n";
         foreach($files as $file){
           $url_info = parse_url($file->guid);
           $path_info = pathinfo($url_info['path']);
-          // print_r($path_info);
           $file_path = str_replace('/wp-content/uploads',"",$url_info['path']);
           $src = $upload_dir['basedir'] . $file_path;
           $target = $this->fs->orginals . "/" . $path_info['basename'];
+          echo "  Original: " . $path_info['basename'] ."\n\n";
           copy($src,$target);
-          // echo 'S: ' . $src . "\n";
-          // echo 'T: ' . $target . "\n\n";
         }
 
         // print_r($upload_dir);
         // exit;
 
         // copy the uploads directory to the static folder
+        echo "Copying the media library.\n\n";
         $this->copy_recursive($upload_dir['basedir'], $this->fs->static . "/" . str_replace(trailingslashit(get_home_url()), '', $upload_dir['baseurl']));
     }
 
@@ -567,8 +560,7 @@ class Hugo_Export
      *
      * @return      bool     Returns TRUE on success, FALSE on failure
      */
-    function copy_recursive($source, $dest)
-    {
+    function copy_recursive($source, $dest) {
 
         global $wp_filesystem;
 
@@ -609,37 +601,26 @@ class Hugo_Export
     /**
      * @param null $tempDir
      */
-    public function setTempDir($tempDir)
-    {
+    public function setTempDir($tempDir) {
         $this->_tempDir = $tempDir . (false === strpos($tempDir, DIRECTORY_SEPARATOR) ? DIRECTORY_SEPARATOR : '');
     }
 
     /**
      * @return null
      */
-    public function getTempDir()
-    {
+    public function getTempDir() {
         if (null === $this->_tempDir) {
             $this->_tempDir = get_temp_dir();
         }
         return $this->_tempDir;
     }
+
+    public function test()
+    {
+        return "test";
+    }
 }
 
 $je = new Hugo_Export();
 
-if (defined('WP_CLI') && WP_CLI) {
-
-    class Hugo_Export_Command extends WP_CLI_Command
-    {
-
-        function __invoke()
-        {
-            global $je;
-
-            $je->export();
-        }
-    }
-
-    WP_CLI::add_command('hugo-export', 'Hugo_Export_Command');
-}
+require 'hugo-export-cli.php';
