@@ -407,9 +407,27 @@ class Hugo_Export
         if (get_post_type($post) == 'page') {
             $filepath = parse_url(get_the_permalink($post));
             $relpath = str_replace($post->post_name, '', substr($filepath['path'], 0, -1));
-            $curDir = $this->fs->content . $relpath;
-            $wp_filesystem->mkdir($curDir);
-            $filename = $curDir . sanitize_title_with_dashes($post->post_title) . '.md';
+                
+            switch(true){
+              // home page
+              case get_option( 'page_for_posts' ) == $post->ID:
+                $filename = $this->fs->content . '/posts/_index.md';
+                break;
+              // blog page
+              case get_option( 'page_on_front' ) == $post->ID:
+                $filename = $this->fs->content . '/_index.md';
+                break;
+              // catch the ones that fall through the cracks
+              case !$relpath:
+                $filename = $this->fs->content . '/' . sanitize_title_with_dashes($post->post_title) . '.md';
+                break;
+              // everyone else
+              default:
+                $curDir = $this->fs->content . $relpath;
+                $wp_filesystem->mkdir($curDir);
+                $filename = $curDir . sanitize_title_with_dashes($post->post_title) . '.md';
+                break;
+            }
         } else {
             $filename = $this->fs->posts . sanitize_title_with_dashes($post->post_title) . '.md';
         }
