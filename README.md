@@ -1,32 +1,19 @@
-# WordPress to Hugo Exporter
+# Bugo WP Export CLI Plugin
 
 Hugo a static site generator written in GoLang: [https://gohugo.io](https://gohugo.io)
 
-This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter](https://github.com/benbalter/wordpress-to-jekyll-exporter)
-
-## Hugo Features
-
-One-click WordPress plugin that converts all posts, pages, taxonomies, metadata,
-and settings to Markdown and YAML which can be dropped into Hugo.
+This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter](https://github.com/benbalter/wordpress-to-jekyll-exporter) 
 
 ## Features
 
-* Converts all posts, pages, and settings from WordPress for use in Hugo
-* Export what your users see, not what the database stores (runs post content
-through `the_content` filter prior to export, allowing third-party plugins to
-modify the output)
+* Converts all posts & pages from WordPress for use in Hugo
+* Processes shortcodes
 * Converts all `post_content` to Markdown Extra (using Markdownify)
-* Converts all `post_meta` and fields within the `wp_posts` table to YAML front
-matter for parsing by Hugo.
-* Exports optionally `comments` as part of their posts. This features needs to be
-enabled manually by editing the PHP source code. See file hugo-export.php at
-line ~40.
-* Export private posts and drafts. They are marked as drafts as well and won't get
-published with Hugo.
+* Converts all `post_meta` and fields within the `wp_posts` table to YAML front matter for parsing by Hugo.
+* Converts all **Advanced Custom Fields** into front matter in your posts.
+* Metadata is converted markdown.
+* Exports private posts and drafts. They are marked as drafts as well and won't get published with Hugo.
 * Generates a `config.yaml` with all settings in the `wp_options` table
-* Outputs a single zip file with `config.yaml`, pages, and `post` folder
-containing `.md` files for each post in the proper Hugo naming convention.
-* No settings. Just a single click.
 
 ## Usage with a self hosted WordPress installation
 
