@@ -1,4 +1,17 @@
 <?php
+/**
+* Plugin Name: Bugo Export CLI
+* Plugin URI: https://bugo.io/
+* Description: Convert this site for use in a Hugo site. Hugo is a static site generator. <a href="https://bugo.io">Bugo Vanilla</a> is a great starter theme for Hugo. 
+* Version: 1.0
+* Author: Matthew Antone
+* Author URI: http://matthewantone.com/
+**/
+
+defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+require 'vendor/autoload.php';
+use League\HTMLToMarkdown\HtmlConverter;
+
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 
 /**
@@ -23,7 +36,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
  *     Success: Deleted 'my_option' option.
  **/
 
- class BugoWPCLI {
+  class BugoWPCLI {
       
     private $hugo_export;
     private $fs;
@@ -31,7 +44,6 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
     public function __construct() {
 
       // example constructor called when plugin loads
-      $this->hugo_export = new Hugo_Export();
       $this->require_classes();
       $this->$fs = (object)[];
     }
@@ -103,6 +115,22 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
     }
 
     /**
+     * Determine if it's an empty value
+     */
+    protected function _isEmpty($value){
+      if (true === is_array($value)) {
+          if (true === empty($value)) {
+              return true;
+          }
+          if (1 === count($value) && true === empty($value[0])) {
+              return true;
+          }
+          return false;
+      }
+      return true === empty($value);
+    }
+
+    /**
      *  Conditionally Include required classes
      */
     private function require_classes(){
@@ -116,70 +144,223 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
         }
     }
 
-      /**
-       *  Get originals
-       */
-      private function get_originals(){
-        global $wpdb;
-        $files = $wpdb->get_results("SELECT guid FROM `wp_posts` where `post_type` = 'attachment'");
-        return $files;
+    /**
+     *  Get originals
+     */
+    private function get_originals(){
+      global $wpdb;
+      $files = $wpdb->get_results("SELECT guid FROM `wp_posts` where `post_type` = 'attachment'");
+      return $files;
+    }
+
+    /**
+     *  How should we handle filesystem filters
+     */
+    private function filesystem_method_filter(){
+        return 'direct';
+    }
+
+    /**
+     * Create directories
+     */
+    private function create_directories( $basedir = './', $dir = null ){
+
+      WP_CLI::log( 'Creating necessary directories.' );
+      global $wp_filesystem;
+      $site = get_bloginfo( 'name' );
+
+      
+      add_filter('filesystem_method', array(&$this, 'filesystem_method_filter'));
+
+      WP_Filesystem();
+      
+      $this->fs->dir = $basedir;
+      $this->fs->export = $this->fs->dir . '/wp-hugo-' . sanitize_title_with_dashes($site);
+
+      if($dir == 'originals'){
+        $this->fs->orginals = $this->fs->export . '/originals';
       }
 
-      private function filesystem_method_filter(){
-          return 'direct';
+      if($dir == 'posts'){
+        $this->fs->content = $this->fs->export. '/content';
+        $this->fs->posts = $this->fs->content . '/posts';
       }
 
-      /**
-       * Create directories
-       */
-      private function create_directories( $basedir = './', $dir = null ){
+      if($dir == 'media'){
+        $this->fs->static = $this->fs->export. '/static';
+        $this->fs->wpcontent = $this->fs->static . '/wp-content';
+        $this->fs->uploads = $this->fs->wpcontent . '/uploads';
+      }
 
-        WP_CLI::log( 'Creating necessary directories.' );
-        global $wp_filesystem;
-        $site = get_bloginfo( 'name' );
+      if($dir == 'zip'){
+        $this->fs->zip = $basedir . '/wp-hugo.zip';
+      }
 
-        
-        add_filter('filesystem_method', array(&$this, 'filesystem_method_filter'));
-
-        WP_Filesystem();
-        
-        $this->fs->dir = $basedir;
-        $this->fs->export = $this->fs->dir . '/wp-hugo-' . sanitize_title_with_dashes($site);
-
-        if($dir == 'originals'){
-          $this->fs->orginals = $this->fs->export . '/originals';
-        }
-
-        if($dir == 'posts'){
-          $this->fs->content = $this->fs->export. '/content';
-          $this->fs->posts = $this->fs->export. $this->post_folder;
-        }
-
-        if($dir == 'media'){
-          $this->fs->static = $this->fs->export. '/static';
-          $this->fs->wpcontent = $this->fs->static . '/wp-content';
-          $this->fs->uploads = $this->fs->wpcontent . '/uploads';
-        }
-
-        if($dir == 'zip'){
-          $this->fs->zip = $basedir . '/wp-hugo.zip';
-        }
-
-        print_r($this->fs);
-
-        foreach($this->fs as $key => $dir){
-          if(!is_dir($dir)){
-            if($wp_filesystem->mkdir($dir)){
-              WP_CLI::success( "Created $dir" );
-            }else{
-              WP_CLI::error( "Couldn't create $dir" );
-              return false;
-            }
+      foreach($this->fs as $key => $dir){
+        if(!is_dir($dir)){
+          if($wp_filesystem->mkdir($dir)){
+            WP_CLI::success( "Created $dir" );
+          }else{
+            WP_CLI::error( "Couldn't create $dir" );
+            return false;
           }
         }
-        return true;
       }
+      WP_CLI::success( 'Created necessary directories.' );
+      return true;
+    }
+
+    /**
+     * @param WP_Post $post
+     *
+     * @return bool|string
+     */
+    protected function _getPostDateAsIso(WP_Post $post){
+        // Dates in the m/d/y or d-m-y formats are disambiguated by looking at the separator between the various components: if the separator is a slash (/),
+        // then the American m/d/y is assumed; whereas if the separator is a dash (-) or a dot (.), then the European d-m-y format is assumed.
+        $unixTime = strtotime($post->post_date_gmt);
+        return date('c', $unixTime);
+    }
+
+    /**
+     * Get an array of all post and page IDs
+     * Note: We don't use core's get_posts as it doesn't scale as well on large sites
+     */
+    function get_posts(){
+
+        global $wpdb;
+        return $wpdb->get_col("SELECT ID FROM $wpdb->posts WHERE post_status in ('publish', 'draft', 'private') AND post_type IN ('post', 'page' )");
+    }
+    
+    /**
+     * Convert the main post content to Markdown.
+     */
+    function convert_content($post){
+        $content = apply_filters('the_content', $post->post_content);
+        $converter = new HtmlConverter();
+        $markdown = $converter->convert($content);
+        // print_r($markdown);
+
+        if (false !== strpos($markdown, '[]: ')) {
+            // faulty links; return plain HTML
+            return $content;
+        }
+        return $markdown;
+    }
       
+    /**
+     * Convert a posts meta data (both post_meta and the fields in wp_posts) to key value pairs for export
+     */
+    function convert_meta(WP_Post $post){
+        $output = array(
+            'title' => html_entity_decode(get_the_title($post), ENT_QUOTES | ENT_XML1, 'UTF-8'),
+            //'author' => get_userdata($post->post_author)->display_name,
+            'type' => get_post_type($post),
+            'date' => $this->_getPostDateAsIso($post),
+        );
+        if (false === empty($post->post_excerpt)) {
+            $output['excerpt'] = $post->post_excerpt;
+        }
+
+        if (in_array($post->post_status, array('draft', 'private'))) {
+            // Mark private posts as drafts as well, so they don't get
+            // inadvertently published.
+            $output['draft'] = true;
+        }
+        if ($post->post_status == 'private') {
+            // hugo doesn't have the concept 'private posts' - this is just to
+            // disambiguate between private posts and drafts.
+            $output['private'] = true;
+        }
+
+        //turns permalink into 'url' format, since Hugo supports redirection on per-post basis
+        if ('page' !== $post->post_type) {
+            $output['url'] = urldecode(str_replace(home_url(), '', get_permalink($post)));
+        }
+
+        // check if the post or page has a Featured Image assigned to it.
+        if (has_post_thumbnail($post)) {
+            $output['featured_image'] = str_replace(get_site_url(), "", get_the_post_thumbnail_url($post));
+        }
+
+        //convert traditional post_meta values, hide hidden values
+        foreach (get_post_custom($post->ID) as $key => $value) {
+            if (substr($key, 0, 1) == '_') {
+                continue;
+            }
+            if (false === $this->_isEmpty($value)) {
+                $output[$key] = $value;
+            }
+        }
+        return $output;
+    }
+
+    /**
+     * Convert post taxonomies for export
+     */
+    function convert_terms($post){
+
+        $output = array();
+        foreach (get_taxonomies(array('object_type' => array(get_post_type($post)))) as $tax) {
+
+            $terms = wp_get_post_terms($post, $tax);
+
+            //convert tax name for Hugo
+            switch ($tax) {
+                case 'post_tag':
+                    $tax = 'tags';
+                    break;
+                case 'category':
+                    $tax = 'categories';
+                    break;
+            }
+
+            if ($tax == 'post_format') {
+                $output['format'] = get_post_format($post);
+            } else {
+                $output[$tax] = wp_list_pluck($terms, 'name');
+            }
+        }
+    }
+
+    /**
+     * Write file to temp dir
+     */
+    function write($output, $post){
+
+        global $wp_filesystem;
+
+        if (get_post_type($post) == 'page') {
+            $filepath = parse_url(get_the_permalink($post));
+            $relpath = str_replace($post->post_name, '', substr($filepath['path'], 0, -1));
+                
+            switch(true){
+              // home page
+              case get_option( 'page_for_posts' ) == $post->ID:
+                $filename = $this->fs->posts . '/_index.md';
+                break;
+              // blog page
+              case get_option( 'page_on_front' ) == $post->ID:
+                $filename = $this->fs->content . '/_index.md';
+                break;
+              // catch the ones that fall through the cracks
+              case !$relpath:
+                $filename = $this->fs->content . '/' . sanitize_title_with_dashes($post->post_title) . '.md';
+                break;
+              // everyone else
+              default:
+                $curDir = $this->fs->content . $relpath;
+                $wp_filesystem->mkdir($curDir);
+                $filename = $curDir . sanitize_title_with_dashes($post->post_title) . '.md';
+                break;
+            }
+        } else {
+            $filename = $this->fs->posts . '/' . sanitize_title_with_dashes($post->post_title) . '.md';
+        }
+
+        $wp_filesystem->put_contents($filename, $output);
+    }
+
 
       /**
        * Export the posts
@@ -188,23 +369,48 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
         WP_CLI::warning( 'Exporting posts' );
         //create necessary directories
         if($this->create_directories($args[0],'posts')){
-          WP_CLI::success( 'Directories created.' );
-          // copy the uploads directory to the static folder
-          WP_CLI::log( "Copying the media library.\n\n" );
-          $this->copy_recursive($upload_dir['basedir'], $this->fs->static . "/" . str_replace(trailingslashit(get_home_url()), '', $upload_dir['baseurl']));
+          //convert posts for hugo
+          global $post;
 
+          foreach ($this->get_posts() as $postID) {
+              WP_CLI::log('Converting ' . get_the_title($postID) );
+              $post = get_post($postID);
+              setup_postdata($post);
+              $meta = $this->convert_meta($post);
+              $terms = $this->convert_terms($postID);
+              if($terms){
+                $meta = array_merge( $meta, $terms );
+              }
+
+              // remove falsy values, which just add clutter
+              foreach ($meta as $key => $value) {
+                  if (!is_numeric($value) && !$value) {
+                      unset($meta[$key]);
+                  }
+              }
+
+              // Hugo doesn't like word-wrapped permalinks
+              $output = Spyc::YAMLDump($meta, false, 0);
+
+              $output .= "\n---\n";
+              $output .= $this->convert_content($post);
+              if ($this->include_comments) {
+                  $output .= $this->convert_comments($post);
+              }
+              $this->write($output, $post);
+              WP_CLI::success('Converted ' . get_the_title($postID) );
+          }
+          WP_CLI::success( 'Done exporting posts.' );
         } else {
           WP_CLI::error( "Couldn't create the required directories" );
         }
-
-        $this->create_directories($args[0],'posts');
       }
 
       /**
        * Export the media library
        */
       private function export_media_library($args, $assoc_args) {
-        WP_CLI::log( 'Exporting media library' );
+        WP_CLI::log( 'Exporting media library.' );
         $upload_dir = wp_upload_dir();
 
         //create necessary directories
@@ -213,6 +419,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
         } else {
           WP_CLI::error( "Couldn't create the required directories" );
         }
+        WP_CLI::success( 'Done Exporting media library.' );
       }
 
       /**
@@ -222,13 +429,12 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
         global $wpdb;
         $upload_dir = wp_upload_dir();
 
-        WP_CLI::log( 'Exporting Original Media' );        
+        WP_CLI::log( 'Exporting Original Media.' );        
         //create necessary directories
         if($this->create_directories($args[0],'originals')){
-          WP_CLI::success( 'Directories created.' );
           //get the images
           if($files = $this->get_originals()){
-            WP_CLI::success( 'Images: ' . sizeof($files) );
+            WP_CLI::success( 'Images: ' . sizeof($files) . '.');
             //copy the images
             foreach($files as $file){
               $url_info = parse_url($file->guid);
@@ -260,6 +466,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
         }else{
           WP_CLI::error( "Couldn't create the required directories" );
         }
+         WP_CLI::success( 'Done exporting media library originals.' );
       }
 
       /**
@@ -296,12 +503,6 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
        * <directory>
        * : The path where you want to export the files.
        * [--<field>=<value>]
-       * ---
-       * default: success
-       * options:
-       *   - success
-       *   - error
-       * ---
        *
        * ## EXAMPLES
        *
@@ -310,13 +511,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
        * @when after_wp_load
        */      
       function posts($args, $assoc_args) {
-
-        // give output
-        WP_CLI::success( 'Exporting Posts' );
-
-        //create necessary directories
-        WP_CLI::log('Creating Directories');
-        $this->create_directories('posts');
+        $this->export_posts($args, $assoc_args);  
       }
       
 
