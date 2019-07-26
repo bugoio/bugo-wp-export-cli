@@ -16,13 +16,6 @@ This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter
 * Exports private posts and drafts. They are marked as drafts as well and won't get published with Hugo.
 * Generates a `config.yaml` with all settings in the `wp_options` table
 
-## Usage with a self hosted WordPress installation
-
-1. Place plugin in `/wp-content/plugins/` folder
-2. Make sure `extension=zip.so` line is uncommented in your `php.ini`
-3. Activate plugin in WordPress dashboard
-4. Select `Export to Hugo` from the `Tools` menu
-
 ## Why CLI?
 
 It's been my experience that it just runs faster. Server speeds and setup can vary wildly. 
@@ -31,7 +24,14 @@ the headache away.
 
 ## Recommneded Setup
 
-You should be running the website on a local development server for best results.
+You should be running the website on a local WordPress installation.
+
+## Usage with a locally hosted WordPress installation
+
+1. Download this repo as a zip file in the upper right hand corner of this page.
+1. Place plugin zip in `/wp-content/plugins/` folder
+2. Unzip the file
+1. Activate plugin in WordPress dashboard
 
 ## Command-line Usage
 
