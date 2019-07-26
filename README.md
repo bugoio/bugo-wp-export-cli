@@ -35,7 +35,7 @@ You should be running the website on a local development server for best results
 
 ## Command-line Usage
 
-`wp bugo <subcommand> <directory> [--<field>=<value>]`
+`wp bugo <subcommand> <directory>`
 
 **Subcommand**
 * all - exports posts,pages and the media library.
