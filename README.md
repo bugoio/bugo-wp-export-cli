@@ -32,6 +32,8 @@ You should be running the website on a local WordPress installation.
 1. Place plugin zip in `/wp-content/plugins/` folder
 2. Unzip the file
 1. Activate plugin in WordPress dashboard
+1. In a termainal navigate to your WordPress installation to begin using WP-CLI
+1. Type in your command. See **Command-line Usage** below.
 
 ## Command-line Usage
 
