@@ -38,10 +38,11 @@ You should be running the website on a local development server for best results
 `wp bugo <subcommand> <directory>`
 
 **Subcommand**
-* all - exports posts,pages and the media library.
+* export - export pages, posts and media library
 * posts - exports only posts & pages
 * media - exports the media library (preserved directories)
-* originals - exports only the original media from the media library.
+* originals - exports only the original media from the media library
+* all - exports posts,pages and the media library
 
 **Directory**
 This is your target directory. A new folder containing the export will be created here.
@@ -50,7 +51,7 @@ This is your target directory. A new folder containing the export will be create
 
 ` # wp bugo all ~/Desktop `
 
-Exports posts, exports posts,pages and the media library to ~/Desktop/wp-hugo-<website>
+Exports posts, exports posts,pages and the media library to `~/Desktop/wp-hugo-<website>`
 
 ## Changelog
 
