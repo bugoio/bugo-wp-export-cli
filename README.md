@@ -12,6 +12,7 @@ This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter
 * Converts all `post_meta` and fields within the `wp_posts` table to YAML front matter for parsing by Hugo.
 * Converts all **Advanced Custom Fields** into front matter in your posts. May be duplicate data, but new keys.
 * Metadata is converted markdown.
+* All internal URls are converted to relative URLs.
 * Exports private posts and drafts. They are marked as drafts as well and won't get published with Hugo.
 * Generates a `config.yaml` with all settings in the `wp_options` table
 
@@ -22,93 +23,34 @@ This repo is based on [https://github.com/benbalter/wordpress-to-jekyll-exporter
 3. Activate plugin in WordPress dashboard
 4. Select `Export to Hugo` from the `Tools` menu
 
-## Usage at wordpress.com or any other hoster without SSH access
+## Why CLI?
 
-(I've never tried it, because not a wp.com user)
+It's been my experience that it just runs faster. Server speeds and setup can vary wildly. 
+Some hosts have very short max timeouts that will cause the export to fail. Using CLI takes most of
+the headache away.
 
-1. Login into the backend.
-2. Create an XML export of the whole blog and download the XML file.
-3. Setup a local WordPress instance on your machine. You need PHP, MySQL or
-MariaDB and Nginx or Apache or Caddy Server. Alternatively you can install a
-Docker Compose setup
-[https://github.com/wodby/docker4wordpress](https://github.com/wodby/docker4wordpress)
-4. Install this plugin by downloading a zip file of this repo and uploading to WP.
-5. Import the XML export. You should take care that the WordPress version of the
-export matches the WP version used for the import.
-6. In the WP backend run the `Export to Hugo` command. If that fails go to the
-command line run the CLI script with `memory_limit=-1`, means unlimited memory
-usage.
-7. Collect the ZIP via download or the CLI script presents you the current name.
-8. Remove WordPress and enjoy Hugo.
+## Recommneded Setup
 
-Re Docker: It should be very easy to create a Dockerfile containing everything
-above mentioned for a one time conversion of the XML file to the Hugo format.
+You should be running the website on a local development server for best results.
 
 ## Command-line Usage
 
-If you're having trouble with your web server timing out before the export is
-complete, or if you just like terminal better, you may enjoy the command-line
-tool.
+wp bugo <subcommand> <directory> [--<field>=<value>]
 
-It works just like the plugin, but produces the zipfile at `/tmp/wp-hugo.zip`:
+** Subcommand **
+* all - exports posts,pages and the media library.
+* posts - exports only posts & pages
+* media - exports the media library (preserved directories)
+* originals - exports only the original media from the media library.
 
-    php hugo-export-cli.php
+### Example
 
+` # wp bugo all ~/Desktop `
 
-If you want to offer a folder (say a mount point to a huge drive) other than using `/tmp` in OS, pass it as the first argument to the script:
-
-    php hugo-export-cli.php /YOUR_PATH_TO_TMP_FOLDER/
-
-Alternatively, if you have [WP-CLI](http://wp-cli.org) installed, you can run:
-
-```
-wp hugo-export > export.zip
-```
-
-The WP-CLI version will provide greater compatibility for alternate WordPress
-environments, such as when `wp-content` isn't in the usual location.
+Exports posts, exports posts,pages and the media library to ~/Desktop/wp-hugo-<website>
 
 ## Changelog
 
-### 1.6
-
-* Fix destination against hugo 0.27
-* Fix for working on older PHP
-* Fix memory leak in Converter.php by cut unnessesary
-* updated markdownify
-* entities fix and post image added
-
-### 1.5
-
-* Export drafts and private posts
-* Export optionally comments
-* Various changes and fixes
-
-### 1.4
-
-* Made license explicit
-* Removed word-wrap from YAML export to prevent breaking permalinks
-
-### 1.3
-
-* Use [fork of Markdownify](https://github.com/Pixel418/Markdownify) rather than external API to convert content from HTML to markdown
-* Better memory utilization for larger sites, props @ghelleks
-
-### 1.2
-
-* Commmand-line support, props @ghelleks and @scribu
-
-### 1.1
-
-* Use WP_Filesystem for better compatability
-* 1.1.1 - Use heckyeahmarkdown to prevent PHP errors when Markdownify chokes on malformed HTML
-* 1.1.2 - clarify zip.so requirement in readme
-
 ### 1.0
 
-* Initial Release
-
-## License
-
-The project is licensed under the GPLv3 or later
-
+* First Release
