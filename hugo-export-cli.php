@@ -46,6 +46,8 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
       // example constructor called when plugin loads
       $this->require_classes();
       $this->$fs = (object)[];
+      $this->converter = new HtmlConverter();
+      
     }
 
     private $required_classes = array(
@@ -161,6 +163,28 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
     }
 
     /**
+     *  has any shortcode
+     */
+    private function has_any_shortcode($content){
+      global $shortcode_tags;
+      // print_r($shortcode_tags);
+      foreach($shortcode_tags as $shortcode => $value){
+        if(has_shortcode($content,$shortcode)){
+            WP_CLI::log('has shortcode: ' . $shortcode );
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /**
+     *  strip domain
+     */
+    private function strip_domain($path){
+      return str_replace(home_url(), '', $path);
+    }
+
+    /**
      * Create directories
      */
     private function create_directories( $basedir = './', $dir = null ){
@@ -236,22 +260,44 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
      * Convert the main post content to Markdown.
      */
     function convert_content($post){
-        $content = apply_filters('the_content', $post->post_content);
-        $converter = new HtmlConverter();
-        $markdown = $converter->convert($content);
-        // print_r($markdown);
-
+        $content = $post->post_content;
+        if($this->has_any_shortcode($content)){
+          WP_CLI::log('processing shortcodes');
+          $content = apply_filters('the_content', $content);
+        }
+        WP_CLI::success( 'Converting to Markdown');
+        $markdown = $this->converter->convert($content);
+        $markdown = $this->strip_domain($markdown);
         if (false !== strpos($markdown, '[]: ')) {
             // faulty links; return plain HTML
             return $content;
         }
         return $markdown;
     }
-      
+    
+    function processMetaShortcodes($meta){
+        $processed = apply_filters('the_content', $meta);
+        $processed = $this->strip_domain($processed);
+        return $this->converter->convert($processed);
+    }
+    
+    function convertValues($acf){
+      foreach($acf as $key => $value){
+        if(is_array($value)){
+          echo "is array\n";
+          $meta =  $this->convertValues($meta);
+        } else {
+          $acf[$key] = $this->processMetaShortCodes($value);
+        }
+      }
+      return $acf;
+    }
+
     /**
      * Convert a posts meta data (both post_meta and the fields in wp_posts) to key value pairs for export
      */
     function convert_meta(WP_Post $post){
+        echo "converting meta\n\n";
         $output = array(
             'title' => html_entity_decode(get_the_title($post), ENT_QUOTES | ENT_XML1, 'UTF-8'),
             //'author' => get_userdata($post->post_author)->display_name,
@@ -280,16 +326,37 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 
         // check if the post or page has a Featured Image assigned to it.
         if (has_post_thumbnail($post)) {
-            $output['featured_image'] = str_replace(get_site_url(), "", get_the_post_thumbnail_url($post));
+            $output['images'] = [str_replace(get_site_url(), "", get_the_post_thumbnail_url($post))];
+        }
+
+        //convert ACF fields
+        if(function_exists('get_fields')){
+          $acf = get_fields($post);
+          // print_r($acf);
+          if($acf){
+            $acf = $this->convertValues($acf);
+            
+            foreach ($acf as $key => $value) {
+              if (false === $this->_isEmpty($value)) {
+                $output[$key] = $value;
+              }
+            }
+          }
         }
 
         //convert traditional post_meta values, hide hidden values
-        foreach (get_post_custom($post->ID) as $key => $value) {
+        $custom_post_meta = get_post_custom($post->ID);
+        // if($custom_post_meta){
+        //   print_r($custom_post_meta);
+        //   $custom_post_meta = $this->convertValues($custom_post_meta);
+        // }
+        foreach ( $custom_post_meta as $key => $value) {
             if (substr($key, 0, 1) == '_') {
                 continue;
             }
-            if (false === $this->_isEmpty($value)) {
-                $output[$key] = $value;
+            // $processed = apply_filters('the_content', $value);
+            if (false === $this->_isEmpty($processed)) {
+              $output[$key] = $this->converter->convert($processed);
             }
         }
         return $output;
@@ -299,7 +366,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
      * Convert post taxonomies for export
      */
     function convert_terms($post){
-
+        WP_CLI::log('Converting Terms');
         $output = array();
         foreach (get_taxonomies(array('object_type' => array(get_post_type($post)))) as $tax) {
 
@@ -321,6 +388,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
                 $output[$tax] = wp_list_pluck($terms, 'name');
             }
         }
+        WP_CLI::success( 'Done Converting Terms' );
     }
 
     /**
@@ -393,7 +461,9 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
               $output = Spyc::YAMLDump($meta, false, 0);
 
               $output .= "\n---\n";
+              WP_CLI::log('Processing content.');
               $output .= $this->convert_content($post);
+              WP_CLI::log('Including Comments');
               if ($this->include_comments) {
                   $output .= $this->convert_comments($post);
               }
