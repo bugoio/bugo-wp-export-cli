@@ -43,6 +43,9 @@ You should be running the website on a local development server for best results
 * media - exports the media library (preserved directories)
 * originals - exports only the original media from the media library.
 
+**Directory**
+This is your target directory. A new folder containing the export will be created here.
+
 ### Example
 
 ` # wp bugo all ~/Desktop `
